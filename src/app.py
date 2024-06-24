@@ -2,13 +2,17 @@
 streamlit==1.30.0
 pip install langchain==0.1.4
 pip install langchain_openai==0.0.5 
+conda install anaconda::beautifulsoup4
 '''
 
 import streamlit as st
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_community.document_loaders import WebBaseLoader
 
 def get_response(user_input):
     return "I don't know"
+
+
 
 # App config
 st.set_page_config(page_title="Chat with websites", page_icon="🤖")
