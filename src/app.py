@@ -1,18 +1,14 @@
-'''
-streamlit==1.30.0
-pip install langchain==0.1.4
-pip install langchain_openai==0.0.5 
-conda install anaconda::beautifulsoup4
-pip install python-dotenv
-'''
+
 
 import streamlit as st
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_community.document_loaders import WebBaseLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from dotenv import load_dotenv
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.chains import create_history_aware_retriever
 
 load_dotenv()
 
@@ -29,9 +25,22 @@ def get_vectorstore_from_url(url):
     document_chunks = text_splitter.split_documents(document)
 
     # create a vectorstore from the chunks
-    vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings())    
-    
+    vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings()) 
+
     return document_chunks
+
+def get_context_retriever_chain(vector_store):
+    llm = ChatOpenAI()
+    retriever = vector_store.as_retriever()
+    prompt = ChatPromptTemplate.from_messages([
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("user", "{input}"),
+        ("user", "Given the above conversation, generate a search query to look up in order to get information relevant to the information"),
+    ])
+
+    retriever_chain = create_history_aware_retriever(llm, retriever, prompt)
+    return retriever_chain
+
 
 # App config
 st.set_page_config(page_title="Chat with websites", page_icon="🤖")
@@ -50,9 +59,8 @@ if website_url is None or website_url == "":
     st.info("Please, enter a website URL")
 
 else:
-    document_chunks = get_vectorstore_from_url(website_url)
-    #with st.sidebar:
-    #    st.write(document_chunks)
+    vector_store = get_vectorstore_from_url(website_url)
+    retriever_chain = get_context_retriever_chain(vector_store)
 
     # User input
     user_query = st.chat_input("Type your message here...")
@@ -60,6 +68,14 @@ else:
         response = get_response(user_query)
         st.session_state.chat_history.append(HumanMessage(content=user_query))
         st.session_state.chat_history.append(AIMessage(content=response))
+
+        retrieved_documents = retriever_chain.invoke({
+            "chat_history":  st.session_state.chat_history,
+            "input": user_query
+        })
+        st.write(retrieved_documents)
+
+
 
 #    with st.sidebar:
 #        st.write(st.session_state.chat_history)
@@ -72,5 +88,3 @@ else:
         elif isinstance(message, HumanMessage):
             with st.chat_message("Human"):
                 st.write(message.content)
-
-st.write("")
