@@ -1,4 +1,5 @@
-# pip install streamlit langchain lanchain-openai beautifulsoup4 python-dotenv chromadb
+# pip install streamlit langchain lanchain-openai beautifulsoup4 python-dotenv langchain-chroma
+# version with Chroma working
 
 import streamlit as st
 from langchain_core.messages import AIMessage, HumanMessage
